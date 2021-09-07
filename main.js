@@ -1,8 +1,17 @@
+const { Client, Intents } = require('discord.js');
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+
 const config = require('./config.json');
 const ytdl = require('ytdl-core');
+const fs = require('fs');
 
-const { Client, Intents } = require('discord.js');
-const bot = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+client.commands = new Client.Collection();
+const commandFiles = fs.readdirSync('./commands/').filter(file => file.endswith('.js'));
+for(const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+
+    client.commands.set(command.name, command);
+}
 
 const PREFIX = '!';
 
@@ -10,18 +19,20 @@ var version = '1.0';
 var servers = {};
 
 
-bot.on('ready', () => {
+client.on('ready', () => {
     console.log('Sounds in online!\nVersion: ' + version);
 });
 
-bot.on('message', message => {
+client.on('message', message => {
+    if(!message.content.startsWith(PREFIX) || message.author.bot) return;
 
-    let args = message.content.substring(PREFIX.length).split(" ");
-
-    switch (args[0]) {
+    const args = message.content.substring(PREFIX.length).split(" ");
+    const command = args.shift().toLowerCase();
+    
+    switch (command) {
         case 'play':
 
-            function play(connection, messgae) {
+            function play(connection, message) {
                 var server = servers[message.guild.id];
 
                 server.dispatcher = connection.playStream(ytdl(server.queue[0], {filter: "audioonly"}));
@@ -40,12 +51,12 @@ bot.on('message', message => {
             }
 
 
-            if(!args[1]) {
-                message.channel.send('You need to prove a name/url!');
+            if(!args[0]) {
+                message.channel.send('You need to provide a name/url!');
                 return;
             }
 
-            if (!message.member.voiceChannel) {
+            if (!message.member.voice.channel) {
                 message.channel.send("Join a voice channel to play music!");
                 return;
             }
@@ -58,7 +69,7 @@ bot.on('message', message => {
 
             var server = servers[message.guild.id];
 
-            server.queue.push(args[1]);
+            server.queue.push(args[0]);
 
             if(!message.guild.voiceConnection) {
                 message.member.voice.channel.join().then(function(connection){
@@ -82,5 +93,5 @@ bot.on('message', message => {
 
 
 
-bot.login(config.token);
+client.login(config.token);
 
