@@ -1,17 +1,11 @@
-const { Client, Intents } = require('discord.js');
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+const { Client, Intents, VoiceChannel} = require('discord.js');
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_VOICE_STATES] });
+
 
 const config = require('./config.json');
 const ytdl = require('ytdl-core');
 const fs = require('fs');
-
-client.commands = new Client.Collection();
-const commandFiles = fs.readdirSync('./commands/').filter(file => file.endswith('.js'));
-for(const file of commandFiles) {
-    const command = require(`./commands/${file}`);
-
-    client.commands.set(command.name, command);
-}
+const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
 
 const PREFIX = '!';
 
@@ -32,13 +26,18 @@ client.on('message', message => {
     switch (command) {
         case 'play':
 
-            function play(connection, message) {
+            async function play(connection, message) {
                 var server = servers[message.guild.id];
+                const stream = ytdl(server.queue[0], {filter: "audioonly"});
+                const player = createAudioPlayer();
+                const resource = createAudioResource(stream);
 
-                server.dispatcher = connection.playStream(ytdl(server.queue[0], {filter: "audioonly"}));
 
+                //server.dispatcher = connection.play(ytdl(server.queue[0], {filter: "audioonly"}));
+                server.dispatcher = player.play(resource);
+                connection.subscribe(player);
                 server.queue.shift();
-
+                /*
                 server.dispatcher.on("end", function(){
                     if(server.queue[0]){
                         play(connection, message);
@@ -46,10 +45,17 @@ client.on('message', message => {
                         connection.disconnect();
                     }              
                 });
-
-
+                */
             }
 
+            function channelJoin(channel) {
+                const connection = joinVoiceChannel({
+                    channelId: channel.id,
+                    guildId: channel.guild.id,
+                    adapterCreator: channel.guild.voiceAdapterCreator,
+                });
+                return connection;
+            }
 
             if(!args[0]) {
                 message.channel.send('You need to provide a name/url!');
@@ -72,9 +78,14 @@ client.on('message', message => {
             server.queue.push(args[0]);
 
             if(!message.guild.voiceConnection) {
-                message.member.voice.channel.join().then(function(connection){
+                
+                /*
+                channelJoin(message.member.voice.channel).then(function(connection){
                     play(connection, message);
                 });
+                */
+               
+               play(channelJoin(message.member.voice.channel), message);
             }
 
         break;
