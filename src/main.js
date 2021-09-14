@@ -7,7 +7,7 @@ const fs = require('fs');
 
 const client = new Client();
 
-const PREFIX = '!';
+const PREFIX = config.PREFIX;
 var version = '1.1';
 var servers = {};
 
