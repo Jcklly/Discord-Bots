@@ -1,27 +1,44 @@
-const { Client, Intents, VoiceChannel} = require('discord.js');
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES, Intents.FLAGS.GUILD_VOICE_STATES] });
+//const { Client, Intents } = require('discord.js');
 
-
+const Client = require('./Structures/Client.js');
 const config = require('./config.json');
 const ytdl = require('ytdl-core');
 const fs = require('fs');
-const { joinVoiceChannel, createAudioPlayer, createAudioResource } = require('@discordjs/voice');
+
+const client = new Client();
 
 const PREFIX = '!';
-
-var version = '1.0';
+var version = '1.1';
 var servers = {};
 
+fs.readdirSync('./src/commands/').filter(file => file.endsWith(".js")).forEach(file => {
 
+    const command = require(`./commands/${file}`);
+    console.log(`Command ${command.name} triggered`);
+    client.commands.set(command.name, command);
+
+});
+
+// Bot is online
 client.on('ready', () => {
     console.log('Sounds in online!\nVersion: ' + version);
 });
 
-client.on('message', message => {
+// Handle user messages
+client.on('messageCreate', message => {
+    // Default case no prefix and prevent looping
     if(!message.content.startsWith(PREFIX) || message.author.bot) return;
 
-    const args = message.content.substring(PREFIX.length).split(" ");
-    const command = args.shift().toLowerCase();
+    
+    const args = message.content.substring(PREFIX.length).split(/ +/);
+    //const command = args.shift().toLowerCase();
+    const command = client.commands.find(cmd => cmd.name == args[0]);
+
+    if(!command) {
+        return message.reply('Invalid Command!');
+    }
+
+    command.run(message, args, client);
     
     switch (command) {
         case 'play':
@@ -47,6 +64,7 @@ client.on('message', message => {
                 });
                 */
             }
+            
 
             function channelJoin(channel) {
                 const connection = joinVoiceChannel({
@@ -90,6 +108,7 @@ client.on('message', message => {
 
         break;
     }
+
 
 });
 
